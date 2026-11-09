@@ -128,12 +128,12 @@
         <div class="table-scroll">
           <table>
             <thead>
-              <tr><th>EMISJA</th><th>ILOŚĆ</th><th>DATA ZAKUPU</th><th>DATA WYKUPU</th><th>OPROCENTOWANIE</th><th>OPŁATA / SZT.</th><th>STATUS</th><th></th></tr>
+              <tr><th>EMISJA</th><th>ILOŚĆ</th><th>DATA ZAKUPU</th><th>DATA WYKUPU</th><th>OPROCENTOWANIE</th><th>OPŁATA / SZT.</th><th>RANKING LIKWIDACJI</th><th>STATUS</th><th></th></tr>
             </thead>
             <tbody id="positions-body"></tbody>
           </table>
         </div>
-        <div class="table-footnote"><span class="warning-symbol">!</span> Nowe i nieuzupełnione daty wykupu domyślnie korzystają z Target Date. Kliknij „Do zapadalności”, aby wyłączyć wcześniejszy wykup. Zmiany aktualizują również YAML poniżej.</div>
+        <div class="table-footnote"><span class="warning-symbol">!</span> Ranking jest heurystyką kosztu: im wyższy wynik, tym mniejszy szacowany koszt utraconych przyszłych odsetek na 1 000 zł wypłaty w Target Date. Kupony COI po podatku, opłata i podatek są uwzględnione; przyszłe stopy to scenariusz. Pozycje „Nie zrywaj” zapadają przed celem. Uzupełnij daty zakupu w niekompletnych wierszach.</div>
       </section>
 
       <section class="panel data-panel">

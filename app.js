@@ -190,8 +190,8 @@
       const periodEnd = nextPeriod < maturity ? nextPeriod : maturity;
       const accrualEnd = date < periodEnd ? date : periodEnd;
       const rate = rates[Math.min(periodIndex, rates.length - 1)] / 100;
-      const fraction = Math.max(0, daysBetween(cursor, accrualEnd) / daysBetween(cursor, periodEnd));
-      const interest = emission.price_per_bond * rate * fraction;
+      const fractionOfYear = Math.max(0, daysBetween(cursor, accrualEnd) / 365);
+      const interest = emission.price_per_bond * rate * fractionOfYear;
       if (accrualEnd >= periodEnd) {
         paidInterest += interest;
         paidTax += interest * taxRate;
@@ -246,12 +246,74 @@
     return { value: net, interest, fee, tax, paidOut: date >= payoutDate, maturity, payoutDate };
   }
 
+  function liquidationAssessments() {
+    const targetDate = parseDate(els.targetDate.value || TARGET_DEFAULT);
+    if (!targetDate) return new Map();
+    const assessments = new Map();
+    const ranked = [];
+    validPositions.forEach((position) => {
+      const maturity = addMonths(position.purchase, position.emission.term_months);
+      if (position.purchase > targetDate) {
+        assessments.set(position.index, {
+          score: null,
+          label: "Po terminie celu",
+          comment: `Zakup ${shortDate(position.purchase)} przypada po Target Date.`
+        });
+        return;
+      }
+      if (maturity <= targetDate) {
+        assessments.set(position.index, {
+          score: null,
+          label: "Nie zrywaj",
+          comment: `Pozycja zapada ${shortDate(maturity)} — środki będą dostępne do Target Date bez opłaty za wcześniejszy wykup.`
+        });
+        return;
+      }
+
+      const availableAtTarget = positionValue(position, targetDate, targetDate).value;
+      const heldToMaturity = positionValue(position, maturity, "").value;
+      const foregoneValue = Math.max(0, heldToMaturity - availableAtTarget);
+      const costPerThousand = availableAtTarget > 0 ? foregoneValue / availableAtTarget * 1000 : Infinity;
+      const score = Number.isFinite(costPerThousand)
+        ? Math.max(0, Math.min(100, Math.round(100 - costPerThousand)))
+        : 0;
+      ranked.push({ position, score, foregoneValue, availableAtTarget, heldToMaturity, costPerThousand, maturity });
+    });
+
+    ranked.sort((a, b) => a.costPerThousand - b.costPerThousand || a.position.index - b.position.index);
+    ranked.forEach((item, index) => {
+      const rank = index + 1;
+      const emissionType = item.position.emission.type;
+      let note = `${money(item.foregoneValue)} szacowanej korzyści z trzymania do ${shortDate(item.maturity)} (${money(item.costPerThousand)} na każde 1 000 zł dostępne w Target Date).`;
+      if (emissionType === "COI") {
+        note = `Roczne kupony po podatku są uwzględnione w wartości; nie tracisz ponownie podatku od już wypłaconych odsetek. ${note}`;
+      } else if (emissionType === "TOS") {
+        note = `Oprocentowanie stałe; opłata za wcześniejszy wykup ${money(item.position.emission.redemption_fee_per_bond || 0)} / szt. jest uwzględniona przed podatkiem. ${note}`;
+      } else if (emissionType === "ROR") {
+        note = `Zmienna stopa ROR jest scenariuszem; opłata za wcześniejszy wykup ${money(item.position.emission.redemption_fee_per_bond || 0)} / szt. jest uwzględniona. ${note}`;
+      }
+      assessments.set(item.position.index, {
+        score: item.score,
+        label: `#${rank} · ${rank === 1 ? "pierwsze do rozważenia" : rank === ranked.length ? "zostaw na koniec" : "kolejność pośrednia"}`,
+        comment: note,
+        rank,
+        foregoneValue: item.foregoneValue,
+        costPerThousand: item.costPerThousand
+      });
+    });
+    return assessments;
+  }
+
   function renderTable() {
     els.positions.replaceChildren();
     validPositions = [];
     holdings.forEach((position) => {
       const { data, problems, emission, purchase, redemption, index } = position;
       if (!problems.length) validPositions.push(position);
+    });
+    const liquidationByIndex = liquidationAssessments();
+    holdings.forEach((position) => {
+      const { data, problems, emission, purchase, redemption, index } = position;
       const row = document.createElement("tr");
       if (problems.length) row.className = "incomplete-row";
       const issue = document.createElement("td");
@@ -345,6 +407,38 @@
       } else {
         feeCell.textContent = "—";
       }
+      const rankingCell = document.createElement("td");
+      rankingCell.className = "liquidation-assessment";
+      const assessment = liquidationByIndex.get(index);
+      const targetISO = dateISO(parseDate(els.targetDate.value || TARGET_DEFAULT));
+      const snapshotSignature = purchase
+        ? `${data.emission_id}|${data.quantity}|${dateISO(purchase)}`
+        : "";
+      const snapshot = data.liquidation_snapshot;
+      const snapshotIsCurrent = snapshot &&
+        snapshot.target_date === targetISO &&
+        snapshot.signature === snapshotSignature &&
+        Number.isInteger(snapshot.score) &&
+        Number.isInteger(snapshot.rank) &&
+        typeof snapshot.label === "string" &&
+        typeof snapshot.comment === "string";
+      const displayedScore = snapshotIsCurrent ? snapshot.score : assessment?.score;
+      const displayedLabel = snapshotIsCurrent ? snapshot.label : assessment?.label;
+      const displayedComment = snapshotIsCurrent ? snapshot.comment : assessment?.comment;
+      const score = document.createElement("strong");
+      score.className = "liquidation-score";
+      score.textContent = displayedScore === null || displayedScore === undefined
+        ? "—"
+        : `${displayedScore}/100`;
+      const label = document.createElement("span");
+      label.className = "liquidation-label";
+      label.textContent = displayedLabel || "Niedostępny";
+      const comment = document.createElement("small");
+      comment.className = "liquidation-comment";
+      comment.textContent = problems.length
+        ? `Uzupełnij pozycję, aby wyliczyć ranking (${problems.join("; ")}).`
+        : displayedComment || "Uzupełnij datę celu.";
+      rankingCell.append(score, label, comment);
       const status = document.createElement("td");
       const chip = document.createElement("span");
       chip.className = `status-chip${problems.length ? " status-incomplete" : ""}`;
@@ -366,7 +460,7 @@
       removeButton.dataset.index = String(index);
       removeButton.setAttribute("aria-label", `Usuń pozycję ${index + 1}`);
       actions.append(removeButton);
-      row.append(issue, quantity, purchaseCell, redemptionCell, rateCell, feeCell, status, actions);
+      row.append(issue, quantity, purchaseCell, redemptionCell, rateCell, feeCell, rankingCell, status, actions);
       els.positions.append(row);
     });
     $("position-badge").textContent = `${holdings.length} ${holdings.length === 1 ? "pozycja" : "pozycji"}`;
@@ -839,7 +933,7 @@
   function loadSavedOrExample(key, filename) {
     const saved = localStorage.getItem(STORAGE[key]);
     if (saved !== null) return Promise.resolve(saved);
-    const fetchText = (path) => fetch(`./${path}`).then((response) => {
+    const fetchText = (path) => fetch(`./${path}`, { cache: "no-store" }).then((response) => {
       if (response.status === 404) return null;
       if (!response.ok) throw new Error(`Nie udało się wczytać ${path} (${response.status}).`);
       return response.text();
