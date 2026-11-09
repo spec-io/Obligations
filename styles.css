@@ -133,6 +133,7 @@ td { padding: 12px 20px; border-top: 1px solid #f0f2f0; color: #59675d; font-siz
 .status-incomplete::before { background: #d6a542; }
 .incomplete-row { background: #fffdf6; }
 .missing-details { white-space: normal; color: #9a772c; font-size: 9px; }
+.emission-terms { max-width: 230px; white-space: normal; line-height: 1.45; }
 .table-footnote { padding: 12px 20px 14px; border-top: 1px solid #f1f3f1; color: #969d97; font-size: 9px; }
 .warning-symbol { display: inline-grid; place-items: center; width: 13px; height: 13px; margin-right: 4px; border-radius: 50%; background: #fff2d5; color: #ae7f24; font-size: 9px; font-weight: 700; }
 .data-panel-header { padding-bottom: 19px; }

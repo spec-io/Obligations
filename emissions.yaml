@@ -1,23 +1,290 @@
-# Warunki demonstracyjne, nie są oficjalnymi parametrami aktualnych emisji.
-# Zastąp je właściwymi warunkami z listu emisyjnego.
+# Warunki emisyjne pobrane z oficjalnych listów emisyjnych i stron obligacjeskarbowe.pl.
+# COI: 4,00% w latach 2-4 to scenariusz (inflacja 2,50% + marża 1,50%), nie prognoza MF.
+# ROR0327: powtarzane 4,25% jest scenariuszem; kolejne okresy zależą od stopy referencyjnej NBP.
 emissions:
-  - id: TOS-DEMO
-    name: Obligacje 3-letnie (przykład)
+  - id: TOS0627
+    name: Obligacje 3-letnie TOS0627
+    type: TOS
+    term_months: 36
+    price_per_bond: 100
+    annual_rates: [6.20]
+    accrual: annual_compound
+    redemption_fee_per_bond: 0.70
+    redemption_fee_cap_per_bond: 0.70
+    redemption_fee_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "6,20% rocznie, stałe przez cały 3-letni okres"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/9c068f24-a53b-4ee6-b7ce-fea84bd789e1.pdf
+  - id: TOS0827
+    name: Obligacje 3-letnie TOS0827
+    type: TOS
+    term_months: 36
+    price_per_bond: 100
+    annual_rates: [6.20]
+    accrual: annual_compound
+    redemption_fee_per_bond: 0.70
+    redemption_fee_cap_per_bond: 0.70
+    redemption_fee_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "6,20% rocznie, stałe przez cały 3-letni okres"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/a51652e9-057b-4faf-9a96-b9d882d4c4e7.pdf
+  - id: TOS0927
+    name: Obligacje 3-letnie TOS0927
     type: TOS
     term_months: 36
     price_per_bond: 100
     annual_rates: [5.95]
     accrual: annual_compound
-    redemption_fee_per_bond: 1.00
-    redemption_fee_cap_per_bond: 1.00
+    redemption_fee_per_bond: 0.70
+    redemption_fee_cap_per_bond: 0.70
+    redemption_fee_cap_to_interest: true
     tax_rate: 19
-  - id: EDO-DEMO
-    name: Obligacje 10-letnie (przykład)
-    type: EDO
-    term_months: 120
+    rate_description: "5,95% rocznie, stałe przez cały 3-letni okres"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/7f4e4cb3-48e7-451b-9ca0-71aff71427c9.pdf
+  - id: TOS1127
+    name: Obligacje 3-letnie TOS1127
+    type: TOS
+    term_months: 36
     price_per_bond: 100
-    annual_rates: [6.55, 2.00]
+    annual_rates: [5.95]
     accrual: annual_compound
+    redemption_fee_per_bond: 0.70
+    redemption_fee_cap_per_bond: 0.70
+    redemption_fee_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "5,95% rocznie, stałe przez cały 3-letni okres"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/d8c9544d-6b7e-462a-b49a-fbf076e4e74b.pdf
+  - id: TOS0128
+    name: Obligacje 3-letnie TOS0128
+    type: TOS
+    term_months: 36
+    price_per_bond: 100
+    annual_rates: [5.95]
+    accrual: annual_compound
+    redemption_fee_per_bond: 0.70
+    redemption_fee_cap_per_bond: 0.70
+    redemption_fee_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "5,95% rocznie, stałe przez cały 3-letni okres"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/dcb2aa42-2a51-4d3a-8080-0898efd3d7a9.pdf
+  - id: TOS0328
+    name: Obligacje 3-letnie TOS0328
+    type: TOS
+    term_months: 36
+    price_per_bond: 100
+    annual_rates: [5.95]
+    accrual: annual_compound
+    redemption_fee_per_bond: 0.70
+    redemption_fee_cap_per_bond: 0.70
+    redemption_fee_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "5,95% rocznie, stałe przez cały 3-letni okres"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/d15ba18e-7b0f-4dfc-afa1-7b87c8bc7d77.pdf
+  - id: TOS0428
+    name: Obligacje 3-letnie TOS0428
+    type: TOS
+    term_months: 36
+    price_per_bond: 100
+    annual_rates: [5.95]
+    accrual: annual_compound
+    redemption_fee_per_bond: 0.70
+    redemption_fee_cap_per_bond: 0.70
+    redemption_fee_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "5,95% rocznie, stałe przez cały 3-letni okres"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/fdd1658d-508d-4258-9aa9-d2b4b3a28240.pdf
+  - id: COI0628
+    name: Obligacje 4-letnie COI0628
+    type: COI
+    term_months: 48
+    price_per_bond: 100
+    annual_rates: [6.55, 4.00, 4.00, 4.00]
+    accrual: simple
+    interest_payment_frequency: annual
+    interest_period_months: 12
     redemption_fee_per_bond: 2.00
     redemption_fee_cap_per_bond: 2.00
+    redemption_fee_first_period_cap_to_interest: true
     tax_rate: 19
+    rate_description: "6,55% w I roku; potem inflacja + 1,50 pp, kupon roczny"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/25e8edaa-462e-4bf3-b92e-2bd89489b7a2.pdf
+  - id: COI0828
+    name: Obligacje 4-letnie COI0828
+    type: COI
+    term_months: 48
+    price_per_bond: 100
+    annual_rates: [6.55, 4.00, 4.00, 4.00]
+    accrual: simple
+    interest_payment_frequency: annual
+    interest_period_months: 12
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    redemption_fee_first_period_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "6,55% w I roku; potem inflacja + 1,50 pp, kupon roczny"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/cdcc1e5d-3d1f-4271-9de2-c6807f43225c.pdf
+  - id: COI0928
+    name: Obligacje 4-letnie COI0928
+    type: COI
+    term_months: 48
+    price_per_bond: 100
+    annual_rates: [6.30, 4.00, 4.00, 4.00]
+    accrual: simple
+    interest_payment_frequency: annual
+    interest_period_months: 12
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    redemption_fee_first_period_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "6,30% w I roku; potem inflacja + 1,50 pp, kupon roczny"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/0eef1a0e-a6af-400a-8372-8faa322b60ef.pdf
+  - id: COI1028
+    name: Obligacje 4-letnie COI1028
+    type: COI
+    term_months: 48
+    price_per_bond: 100
+    annual_rates: [6.30, 4.00, 4.00, 4.00]
+    accrual: simple
+    interest_payment_frequency: annual
+    interest_period_months: 12
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    redemption_fee_first_period_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "6,30% w I roku; potem inflacja + 1,50 pp, kupon roczny"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/4c4f5fd1-eddb-41eb-b5ed-ddbd8f0d25f7.pdf
+  - id: COI0129
+    name: Obligacje 4-letnie COI0129
+    type: COI
+    term_months: 48
+    price_per_bond: 100
+    annual_rates: [6.30, 4.00, 4.00, 4.00]
+    accrual: simple
+    interest_payment_frequency: annual
+    interest_period_months: 12
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    redemption_fee_first_period_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "6,30% w I roku; potem inflacja + 1,50 pp, kupon roczny"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/82b8540c-29fe-4cba-b0c4-3bdaaae1a611.pdf
+  - id: COI0229
+    name: Obligacje 4-letnie COI0229
+    type: COI
+    term_months: 48
+    price_per_bond: 100
+    annual_rates: [6.30, 4.00, 4.00, 4.00]
+    accrual: simple
+    interest_payment_frequency: annual
+    interest_period_months: 12
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    redemption_fee_first_period_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "6,30% w I roku; potem inflacja + 1,50 pp, kupon roczny"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/9cdf5beb-db79-490c-b25c-f84769c7e216.pdf
+  - id: COI0429
+    name: Obligacje 4-letnie COI0429
+    type: COI
+    term_months: 48
+    price_per_bond: 100
+    annual_rates: [6.30, 4.00, 4.00, 4.00]
+    accrual: simple
+    interest_payment_frequency: annual
+    interest_period_months: 12
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    redemption_fee_first_period_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "6,30% w I roku; potem inflacja + 1,50 pp, kupon roczny"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/521e42b5-28d2-4da2-b376-e1d5a9c89bdd.pdf
+  - id: COI0529
+    name: Obligacje 4-letnie COI0529
+    type: COI
+    term_months: 48
+    price_per_bond: 100
+    annual_rates: [6.10, 4.00, 4.00, 4.00]
+    accrual: simple
+    interest_payment_frequency: annual
+    interest_period_months: 12
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    redemption_fee_first_period_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "6,10% w I roku; potem inflacja + 1,50 pp, kupon roczny"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/597776fd-79f0-4f17-9593-bc4d0f8be0db.pdf
+  - id: COI0729
+    name: Obligacje 4-letnie COI0729
+    type: COI
+    term_months: 48
+    price_per_bond: 100
+    annual_rates: [6.00, 4.00, 4.00, 4.00]
+    accrual: simple
+    interest_payment_frequency: annual
+    interest_period_months: 12
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    redemption_fee_first_period_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "6,00% w I roku; potem inflacja + 1,50 pp, kupon roczny"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/ac1aebeb-e032-4385-8111-6cd07bbd143a.pdf
+  - id: COI0829
+    name: Obligacje 4-letnie COI0829
+    type: COI
+    term_months: 48
+    price_per_bond: 100
+    annual_rates: [5.75, 4.00, 4.00, 4.00]
+    accrual: simple
+    interest_payment_frequency: annual
+    interest_period_months: 12
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    redemption_fee_first_period_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "5,75% w I roku; potem inflacja + 1,50 pp, kupon roczny"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/8523400c-818f-4778-bdb9-aaf95d9f0df8.pdf
+  - id: COI0929
+    name: Obligacje 4-letnie COI0929
+    type: COI
+    term_months: 48
+    price_per_bond: 100
+    annual_rates: [5.75, 4.00, 4.00, 4.00]
+    accrual: simple
+    interest_payment_frequency: annual
+    interest_period_months: 12
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    redemption_fee_first_period_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "5,75% w I roku; potem inflacja + 1,50 pp, kupon roczny"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/eb4d1ca6-9790-49ef-a7a9-26df07385f4f.pdf
+  - id: COI1029
+    name: Obligacje 4-letnie COI1029
+    type: COI
+    term_months: 48
+    price_per_bond: 100
+    annual_rates: [5.50, 4.00, 4.00, 4.00]
+    accrual: simple
+    interest_payment_frequency: annual
+    interest_period_months: 12
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    redemption_fee_first_period_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "5,50% w I roku; potem inflacja + 1,50 pp, kupon roczny"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/684e8dcd-4b5e-482d-85fb-5883544431a3.pdf
+  - id: ROR0327
+    name: Obligacje roczne ROR0327
+    type: ROR
+    term_months: 12
+    price_per_bond: 100
+    period_rates: [4.25]
+    interest_period_months: 1
+    interest_payment_frequency: monthly
+    accrual: simple
+    redemption_fee_per_bond: 0.50
+    redemption_fee_cap_per_bond: 0.50
+    redemption_fee_first_period_cap_to_interest: true
+    tax_rate: 19
+    rate_description: "4,25% w I miesiącu; potem stopa referencyjna NBP + 0,00 pp co miesiąc"
+    source_url: https://www.obligacjeskarbowe.pl/media_files/9a594202-8229-4c9f-b2d4-65351042660a.pdf

@@ -1,14 +1,2 @@
-# Dane poniżej są przykładowe. Zastąp je własnymi pozycjami.
-holdings:
-  - emission_id: TOS-DEMO
-    quantity: 40
-    purchase_date: 2025-02-15
-    redemption_date: 2026-03-01
-  - emission_id: EDO-DEMO
-    quantity: 25
-    purchase_date: 2024-09-01
-    redemption_date: # pusta wartość = Target Date; użyj "" aby trzymać do zapadalności
-  - emission_id: TOS-DEMO
-    quantity: 12
-    purchase_date:
-    redemption_date:
+# Public starter portfolio. Private holdings belong in portfolio.local.yaml.
+holdings: []

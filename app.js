@@ -9,44 +9,6 @@
   };
   const TARGET_DEFAULT = "2026-12-01";
   const TARGET_AMOUNT_DEFAULT = "1000000";
-  const FILE_FALLBACKS = {
-    emissions: `emissions:
-  - id: TOS-DEMO
-    name: Obligacje 3-letnie (przykład)
-    type: TOS
-    term_months: 36
-    price_per_bond: 100
-    annual_rates: [5.95]
-    accrual: annual_compound
-    redemption_fee_per_bond: 1.00
-    redemption_fee_cap_per_bond: 1.00
-    tax_rate: 19
-  - id: EDO-DEMO
-    name: Obligacje 10-letnie (przykład)
-    type: EDO
-    term_months: 120
-    price_per_bond: 100
-    annual_rates: [6.55, 2.00]
-    accrual: annual_compound
-    redemption_fee_per_bond: 2.00
-    redemption_fee_cap_per_bond: 2.00
-    tax_rate: 19
-`,
-    portfolio: `holdings:
-  - emission_id: TOS-DEMO
-    quantity: 40
-    purchase_date: 2025-02-15
-    redemption_date: 2026-03-01
-  - emission_id: EDO-DEMO
-    quantity: 25
-    purchase_date: 2024-09-01
-    redemption_date:
-  - emission_id: TOS-DEMO
-    quantity: 12
-    purchase_date:
-    redemption_date:
-`
-  };
   const COLORS = ["#35845d", "#527f9d", "#c48643", "#8175a7", "#4d9b91", "#bb6971", "#80934f", "#5476b4"];
   const $ = (id) => document.getElementById(id);
   const els = {
@@ -127,10 +89,15 @@
     if (typeof row.name !== "string" || !row.name.trim()) problems.push("brak nazwy emisji");
     if (!Number.isInteger(row.term_months) || row.term_months < 1) problems.push("term_months musi być dodatnią liczbą całkowitą");
     if (typeof row.price_per_bond !== "number" || !Number.isFinite(row.price_per_bond) || row.price_per_bond <= 0) problems.push("price_per_bond musi być dodatnią kwotą");
-    if (!Array.isArray(row.annual_rates) || row.annual_rates.length === 0 || !row.annual_rates.every(percent)) problems.push("annual_rates musi zawierać stopy procentowe od 0 do 100");
+    const rates = row.period_rates ?? row.annual_rates;
+    if (!Array.isArray(rates) || rates.length === 0 || !rates.every(percent)) problems.push("annual_rates lub period_rates musi zawierać stopy procentowe od 0 do 100");
     if (row.accrual !== undefined && !["annual_compound", "simple"].includes(row.accrual)) problems.push("accrual: użyj annual_compound lub simple");
+    if (row.interest_payment_frequency !== undefined && !["annual", "monthly"].includes(row.interest_payment_frequency)) problems.push("interest_payment_frequency: użyj annual lub monthly");
+    if (row.interest_period_months !== undefined && (!Number.isInteger(row.interest_period_months) || row.interest_period_months < 1)) problems.push("interest_period_months musi być dodatnią liczbą całkowitą");
     if (row.redemption_fee_per_bond !== undefined && (typeof row.redemption_fee_per_bond !== "number" || !Number.isFinite(row.redemption_fee_per_bond) || row.redemption_fee_per_bond < 0)) problems.push("redemption_fee_per_bond nie może być ujemne");
     if (row.redemption_fee_cap_per_bond !== undefined && (typeof row.redemption_fee_cap_per_bond !== "number" || !Number.isFinite(row.redemption_fee_cap_per_bond) || row.redemption_fee_cap_per_bond < 0)) problems.push("redemption_fee_cap_per_bond nie może być ujemne");
+    if (row.redemption_fee_cap_to_interest !== undefined && typeof row.redemption_fee_cap_to_interest !== "boolean") problems.push("redemption_fee_cap_to_interest musi mieć wartość true lub false");
+    if (row.redemption_fee_first_period_cap_to_interest !== undefined && typeof row.redemption_fee_first_period_cap_to_interest !== "boolean") problems.push("redemption_fee_first_period_cap_to_interest musi mieć wartość true lub false");
     if (row.tax_rate !== undefined && !percent(row.tax_rate)) problems.push("tax_rate musi być procentem od 0 do 100");
     return { problems, index };
   }
@@ -209,6 +176,35 @@
     return { principal, interest: Math.max(0, interest), maturity };
   }
 
+  function calculatePaidInterest(emission, purchase, date, maturity) {
+    const periodMonths = emission.interest_period_months ?? 12;
+    const rates = emission.period_rates ?? emission.annual_rates;
+    const taxRate = (emission.tax_rate ?? 19) / 100;
+    let paidInterest = 0;
+    let paidTax = 0;
+    let currentInterest = 0;
+    let cursor = purchase;
+    let periodIndex = 0;
+    while (cursor < date && cursor < maturity) {
+      const nextPeriod = addMonths(purchase, periodMonths * (periodIndex + 1));
+      const periodEnd = nextPeriod < maturity ? nextPeriod : maturity;
+      const accrualEnd = date < periodEnd ? date : periodEnd;
+      const rate = rates[Math.min(periodIndex, rates.length - 1)] / 100;
+      const fraction = Math.max(0, daysBetween(cursor, accrualEnd) / daysBetween(cursor, periodEnd));
+      const interest = emission.price_per_bond * rate * fraction;
+      if (accrualEnd >= periodEnd) {
+        paidInterest += interest;
+        paidTax += interest * taxRate;
+      } else {
+        currentInterest = interest;
+      }
+      cursor = periodEnd;
+      periodIndex++;
+      if (periodIndex > 600) throw new Error(`Emisja ${emission.id}: okres naliczania jest zbyt długi.`);
+    }
+    return { paidInterest, paidTax, currentInterest };
+  }
+
   function positionValue(position, date, redemptionOverride = position.redemption) {
     const { emission, purchase } = position;
     const redemption = redemptionOverride || null;
@@ -217,10 +213,31 @@
     const payoutDate = earlyRedemption ? redemption : maturity;
     if (date < purchase) return { value: 0, interest: 0, fee: 0, tax: 0, paidOut: false, maturity, payoutDate };
     const valuedAt = date < payoutDate ? date : payoutDate;
+    if (emission.interest_payment_frequency) {
+      const coupons = calculatePaidInterest(emission, purchase, valuedAt, maturity);
+      const feeIsCappedToInterest = emission.redemption_fee_cap_to_interest ||
+        (emission.redemption_fee_first_period_cap_to_interest &&
+          valuedAt < addMonths(purchase, emission.interest_period_months ?? 12));
+      const requestedFee = earlyRedemption && valuedAt >= redemption
+        ? Math.min(emission.redemption_fee_per_bond || 0, emission.redemption_fee_cap_per_bond ?? Infinity)
+        : 0;
+      const feePerBond = feeIsCappedToInterest ? Math.min(requestedFee, coupons.currentInterest) : requestedFee;
+      const quantity = position.data.quantity;
+      const fee = feePerBond * quantity;
+      const currentInterest = coupons.currentInterest * quantity;
+      const tax = coupons.paidTax * quantity + Math.max(0, currentInterest - fee) * ((emission.tax_rate ?? 19) / 100);
+      const interest = (coupons.paidInterest + coupons.currentInterest) * quantity;
+      const net = Math.max(0, emission.price_per_bond * quantity + coupons.paidInterest * quantity - coupons.paidTax * quantity +
+        currentInterest - fee - Math.max(0, currentInterest - fee) * ((emission.tax_rate ?? 19) / 100));
+      return { value: net, interest, fee, tax, paidOut: date >= payoutDate, maturity, payoutDate };
+    }
     const gross = calculateGross(emission, purchase, valuedAt);
-    const feePerBond = earlyRedemption && valuedAt >= redemption
+    const feeIsCappedToInterest = emission.redemption_fee_cap_to_interest ||
+      (emission.redemption_fee_first_period_cap_to_interest && valuedAt < addMonths(purchase, emission.interest_period_months ?? 12));
+    const requestedFeePerBond = earlyRedemption && valuedAt >= redemption
       ? Math.min(emission.redemption_fee_per_bond || 0, emission.redemption_fee_cap_per_bond ?? Infinity)
       : 0;
+    const feePerBond = feeIsCappedToInterest ? Math.min(requestedFeePerBond, gross.interest) : requestedFeePerBond;
     const fee = feePerBond * position.data.quantity;
     const interest = gross.interest * position.data.quantity;
     const taxableInterest = Math.max(0, interest - fee);
@@ -307,6 +324,27 @@
         redemptionMode.setAttribute("aria-label", `Ustaw Target Date jako wykup pozycji ${index + 1}`);
       }
       redemptionCell.append(redemptionInput, redemptionMode);
+      const rateCell = document.createElement("td");
+      rateCell.className = "emission-terms";
+      const rates = emission?.period_rates ?? emission?.annual_rates;
+      rateCell.textContent = emission
+        ? emission.rate_description || (rates?.length ? `${rates[0]}% rocznie` : "—")
+        : "—";
+      if (emission?.rate_description) rateCell.title = emission.rate_description;
+      const feeCell = document.createElement("td");
+      feeCell.className = "emission-terms";
+      if (emission) {
+        const fee = emission.redemption_fee_per_bond ?? 0;
+        const limit = emission.redemption_fee_cap_to_interest
+          ? "do odsetek"
+          : emission.redemption_fee_first_period_cap_to_interest
+            ? "w I okresie do odsetek"
+            : "";
+        feeCell.textContent = `${money(fee)}${limit ? ` · ${limit}` : ""}`;
+        feeCell.title = `Opłata za przedterminowy wykup jednej obligacji${limit ? `, ${limit}` : ""}`;
+      } else {
+        feeCell.textContent = "—";
+      }
       const status = document.createElement("td");
       const chip = document.createElement("span");
       chip.className = `status-chip${problems.length ? " status-incomplete" : ""}`;
@@ -328,7 +366,7 @@
       removeButton.dataset.index = String(index);
       removeButton.setAttribute("aria-label", `Usuń pozycję ${index + 1}`);
       actions.append(removeButton);
-      row.append(issue, quantity, purchaseCell, redemptionCell, status, actions);
+      row.append(issue, quantity, purchaseCell, redemptionCell, rateCell, feeCell, status, actions);
       els.positions.append(row);
     });
     $("position-badge").textContent = `${holdings.length} ${holdings.length === 1 ? "pozycja" : "pozycji"}`;
@@ -801,12 +839,23 @@
   function loadSavedOrExample(key, filename) {
     const saved = localStorage.getItem(STORAGE[key]);
     if (saved !== null) return Promise.resolve(saved);
-    return fetch(`./${filename}`).then((response) => {
-      if (!response.ok) throw new Error(`Nie udało się wczytać ${filename} (${response.status}).`);
+    const fetchText = (path) => fetch(`./${path}`).then((response) => {
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error(`Nie udało się wczytać ${path} (${response.status}).`);
       return response.text();
-    }).catch((error) => {
-      if (window.location.protocol === "file:") return FILE_FALLBACKS[key];
-      throw error;
+    });
+    if (key === "portfolio") {
+      return fetchText("portfolio.local.yaml").then((localPortfolio) => {
+        if (localPortfolio !== null) return localPortfolio;
+        return fetchText(filename).then((portfolio) => {
+          if (portfolio !== null) return portfolio;
+          throw new Error(`Nie znaleziono ani portfolio.local.yaml, ani ${filename}.`);
+        });
+      });
+    }
+    return fetchText(filename).then((text) => {
+      if (text !== null) return text;
+      throw new Error(`Nie znaleziono pliku ${filename}.`);
     });
   }
 
@@ -825,7 +874,7 @@
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = key === "emissions" ? "emissions.yaml" : "portfolio.yaml";
+    anchor.download = key === "emissions" ? "emissions.yaml" : "portfolio.local.yaml";
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -851,8 +900,11 @@
         : TARGET_AMOUNT_DEFAULT;
       runSimulation();
     }).catch((error) => {
-      setStatus(els.emissionStatus, error.message, "error");
-      setStatus(els.portfolioStatus, "Nie udało się wczytać danych przykładowych", "error");
+      const message = window.location.protocol === "file:"
+        ? "Uruchom aplikację przez lokalny serwer HTTP, aby wczytać portfolio.local.yaml."
+        : error.message;
+      setStatus(els.emissionStatus, message, "error");
+      setStatus(els.portfolioStatus, message, "error");
     });
   }
 

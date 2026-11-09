@@ -4,11 +4,11 @@ Responsywna aplikacja statyczna do symulowania wartości portfela obligacji skar
 
 ## Uruchomienie lokalne
 
-Otwórz `index.html` w przeglądarce albo uruchom dowolny statyczny serwer HTTP w tym katalogu. Parser YAML jest pobierany z jsDelivr, więc potrzebne jest połączenie z internetem.
+Aby automatycznie wczytać prywatne `portfolio.local.yaml`, uruchom lokalny serwer HTTP w tym katalogu, np. `python3 -m http.server 8000`, a następnie otwórz `http://localhost:8000`. Samo otwarcie `index.html` jako `file://` nie pozwala przeglądarce wczytać lokalnego YAML. Parser YAML jest pobierany z jsDelivr, więc potrzebne jest połączenie z internetem.
 
 ## Format YAML
 
-Edytuj `emissions.yaml` oraz `portfolio.yaml` w aplikacji albo przed uruchomieniem. Wartości oprocentowania i stawki podatku podaje się jako procenty, np. `5.5` oznacza 5,5%. `annual_rates` to lista stóp dla kolejnych lat trwania obligacji; po wyczerpaniu listy używana jest ostatnia podana stopa.
+Edytuj `emissions.yaml` oraz `portfolio.local.yaml` przed uruchomieniem albo w polach YAML aplikacji (zmiany w aplikacji zapisują się w `localStorage`; pobrany portfel ma nazwę `portfolio.local.yaml`). Ten prywatny plik jest ignorowany przez Git i automatycznie wczytywany lokalnie, jeśli istnieje; opublikowana strona używa wyłącznie pustego `portfolio.yaml`. Wartości oprocentowania i stawki podatku podaje się jako procenty, np. `5.5` oznacza 5,5%. `annual_rates` to lista stóp dla kolejnych lat trwania obligacji; po wyczerpaniu listy używana jest ostatnia podana stopa.
 
 ```yaml
 emissions:
@@ -21,6 +21,7 @@ emissions:
     accrual: annual_compound # lub simple
     redemption_fee_per_bond: 1.00
     redemption_fee_cap_per_bond: 1.00 # opcjonalny limit opłaty na obligację
+    redemption_fee_first_period_cap_to_interest: true # opcjonalnie
     tax_rate: 19 # opcjonalnie; domyślnie 19%
 
 holdings:
@@ -42,13 +43,20 @@ Wymagane dla pozycji są `emission_id`, dodatnie całkowite `quantity` i prawid�
 
 - Termin zapadalności to data zakupu powiększona o `term_months`.
 - Odsetki naliczane są okresami od rocznicy zakupu; część roku jest proporcjonalna do liczby dni (`ACT/ACT` dla danego okresu). `annual_compound` kapitalizuje odsetki, a `simple` liczy je od ceny zakupu.
-- `annual_rates` opisuje stopę dla kolejnych lat. Stopa nie jest automatycznie pobierana z rynku ani indeksowana inflacją — dla zmiennych emisji należy wpisać własny scenariusz stóp.
-- Wartość przy wcześniejszym wykupie odejmuje opłatę za sztukę (ograniczoną opcjonalnym limitem) i szacunkowy podatek od dodatnich odsetek pozostałych po opłacie. Po wykupie wartość gotówki pozostaje stała, bez oprocentowania. Przy zapadalności opłata za wcześniejszy wykup nie jest naliczana.
+- `annual_rates` opisuje stopy roczne, a `period_rates` — stopy dla okresów kuponowych, np. miesięcznych ROR. Stopy zmienne nie są automatycznie pobierane z rynku ani indeksowane inflacją — przyszłe okresy są scenariuszem.
+- Emisje z `interest_payment_frequency` wypłacają odsetki w podanym rytmie. Symulacja dolicza wcześniej wypłacone kupony po podatku do wartości portfela, a podatek od bieżącego kuponu szacuje przy wycenie. `redemption_fee_first_period_cap_to_interest: true` ogranicza opłatę do odsetek tylko w pierwszym okresie; `redemption_fee_cap_to_interest: true` stosuje ten limit w każdym okresie.
+- Wartość przy wcześniejszym wykupie odejmuje opłatę za sztukę i szacunkowy podatek od dodatnich odsetek pozostałych po opłacie. Po wykupie wartość gotówki pozostaje stała, bez oprocentowania. Przy zapadalności opłata za wcześniejszy wykup nie jest naliczana.
 - `Target Date` jest terminem, do którego trzeba pozyskać zadaną kwotę netto (`Target Amount`). Karta podsumowania pokazuje środki z pozycji zaplanowanych do wykupu do tej daty oraz naturalnych zapadalności.
 - Planer dobiera całe pozycje do wcześniejszego wykupu w `Target Date`, minimalizując szacowaną utratę wartości wobec trzymania ich do końca symulacji. Uwzględnia kwoty netto z naturalnych wykupów przed terminem celu, a pozycje kupione po dacie celu pomija. Wyznaczoną rekomendację można zastosować do portfela; nadpisuje daty wykupu kompletnych pozycji.
 - Koniec symulacji uwzględnia wartość całego portfela po terminie ostatniej obligacji.
 
-Wpisana kwota domyślna wynosi 1 000 000 zł i można ją zmienić. Planer jest dokładny dla analizowanych kombinacji, ale dla bardzo dużych portfeli może odmówić wyliczenia zamiast zwrócić przybliżony plan. Parametry demonstracyjne nie są oficjalnymi warunkami emisji. Wyniki zależą od poprawności wpisanych stóp, opłat i zasad naliczania; mają charakter poglądowy i nie stanowią porady inwestycyjnej ani podatkowej.
+Wpisana kwota domyślna wynosi 1 000 000 zł i można ją zmienić. Planer jest dokładny dla analizowanych kombinacji, ale dla bardzo dużych portfeli może odmówić wyliczenia zamiast zwrócić przybliżony plan. Wyniki zależą od poprawności wpisanych stóp, opłat i zasad naliczania; mają charakter poglądowy i nie stanowią porady inwestycyjnej ani podatkowej.
+
+## Zweryfikowane emisje COI
+
+`emissions.yaml` zawiera tylko emisje z przekazanych danych: TOS0627, TOS0827, TOS0927, TOS1127, TOS0128, TOS0328, TOS0428; COI0628, COI0828, COI0928, COI1028, COI0129, COI0229, COI0429, COI0529, COI0729, COI0829, COI0929, COI1029; oraz ROR0327. Dane pierwszego okresu, ceny i opłaty pochodzą z oficjalnych listów emisyjnych. Stopy przyszłych okresów COI (4%) i ROR (powtarzane 4,25%) są założeniami scenariusza, a nie przyszłą znaną stopą inflacji lub NBP — zmień je przed interpretacją wyników.
+
+Prywatne pozycje i ilości przechowuj wyłącznie w `portfolio.local.yaml` albo w lokalnej pamięci przeglądarki. Nie wpisuj ich do `portfolio.yaml`, który jest publikowany w repozytorium. Przed commitem sprawdź `git check-ignore portfolio.local.yaml` i `git status --short`.
 
 ## Publikacja na GitHub Pages
 
@@ -56,4 +64,4 @@ Wpisana kwota domyślna wynosi 1 000 000 zł i można ją zmienić. Planer jest 
 2. Wypchnij zawartość tego katalogu do gałęzi `main`. Workflow `.github/workflows/pages.yml` automatycznie publikuje pliki po każdym pushu; można go też uruchomić ręcznie w zakładce **Actions**.
 3. Po zakończeniu workflow strona będzie dostępna pod adresem GitHub Pages repozytorium.
 
-Pliki YAML zawierają wyłącznie przykładowe dane. Własne dane wpisuj w aplikacji — nie dodawaj ich do publicznego repozytorium.
+`portfolio.yaml` jest pustym plikiem startowym publikowanym w repozytorium. Prywatne dane znajdują się w ignorowanym przez Git `portfolio.local.yaml` i nie wolno go dodawać do commita.
