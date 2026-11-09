@@ -42,9 +42,9 @@
           <span class="summary-caption" id="current-caption">na dzień symulacji</span>
         </article>
         <article class="summary-card target-card">
-          <div class="summary-heading"><span class="summary-icon icon-orange">⌖</span><span>DATA DOCELOWA</span></div>
+          <div class="summary-heading"><span class="summary-icon icon-orange">⌖</span><span>DOSTĘPNE NETTO DO TARGET DATE</span></div>
           <strong class="summary-value" id="target-value">—</strong>
-          <span class="summary-caption" id="target-caption">wykup do wybranej daty</span>
+          <span class="summary-caption" id="target-caption">z zaplanowanych wykupów do Target Date</span>
         </article>
         <article class="summary-card">
           <div class="summary-heading"><span class="summary-icon icon-blue">◷</span><span>KONIEC SYMULACJI</span></div>
@@ -65,10 +65,16 @@
             <h2>Wartość w czasie</h2>
             <p class="panel-subtitle">Każda linia pokazuje wartość netto pozycji, a po wykupie — gotówkę pozostającą bez oprocentowania.</p>
           </div>
-          <label class="date-control" for="target-date">
-            <span>Target Date</span>
-            <input id="target-date" type="date">
-          </label>
+          <div class="target-controls">
+            <label class="date-control" for="target-date">
+              <span>Target Date · termin</span>
+              <input id="target-date" type="date">
+            </label>
+            <label class="date-control amount-control" for="target-amount">
+              <span>Target Amount · netto</span>
+              <span class="amount-input-wrap"><input id="target-amount" type="number" min="0" step="0.01" inputmode="decimal" value="1000000"><span>zł</span></span>
+            </label>
+          </div>
         </div>
         <div class="chart-toolbar">
           <div class="chart-legend" id="chart-legend" aria-label="Legenda wykresu"></div>
@@ -86,6 +92,24 @@
         <div class="chart-footer">
           <span id="chart-range">—</span>
           <span><span class="footer-dot"></span> Wartość netto uwzględnia opłatę za przedterminowy wykup i podatek wskazany w danych emisji.</span>
+        </div>
+      </section>
+
+      <section class="panel planner-panel" aria-labelledby="planner-title">
+        <div class="planner-header">
+          <div class="planner-heading">
+            <span class="planner-icon">✳</span>
+            <div>
+              <div class="section-kicker">PLANER WCZEŚNIEJSZEGO WYKUPU</div>
+              <h2 id="planner-title">Które obligacje zerwać?</h2>
+              <p class="panel-subtitle">Znajdź całe pozycje, które dadzą wymaganą kwotę netto do Target Date przy najmniejszej utracie wartości.</p>
+            </div>
+          </div>
+          <button class="plan-button" id="calculate-plan" type="button">Wyznacz plan</button>
+        </div>
+        <div class="planner-note"><span class="warning-symbol">i</span> Plan zakłada wykup wybranych pozycji w Target Date. Po wykupie gotówka nie zarabia odsetek; pozostałe obligacje są trzymane do zapadalności. Naturalne wykupy przed terminem celu liczą się do Target Amount bez opłaty za wcześniejszy wykup.</div>
+        <div class="planner-result" id="planner-result" role="status" aria-live="polite">
+          <span class="planner-placeholder">Wpisz Target Amount i wybierz „Wyznacz plan”.</span>
         </div>
       </section>
 

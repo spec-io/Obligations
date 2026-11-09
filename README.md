@@ -44,9 +44,11 @@ Wymagane dla pozycji są `emission_id`, dodatnie całkowite `quantity` i prawid�
 - Odsetki naliczane są okresami od rocznicy zakupu; część roku jest proporcjonalna do liczby dni (`ACT/ACT` dla danego okresu). `annual_compound` kapitalizuje odsetki, a `simple` liczy je od ceny zakupu.
 - `annual_rates` opisuje stopę dla kolejnych lat. Stopa nie jest automatycznie pobierana z rynku ani indeksowana inflacją — dla zmiennych emisji należy wpisać własny scenariusz stóp.
 - Wartość przy wcześniejszym wykupie odejmuje opłatę za sztukę (ograniczoną opcjonalnym limitem) i szacunkowy podatek od dodatnich odsetek pozostałych po opłacie. Po wykupie wartość gotówki pozostaje stała, bez oprocentowania. Przy zapadalności opłata za wcześniejszy wykup nie jest naliczana.
-- `Target Date` pokazuje wartość wykupionych do tego dnia pozycji. Koniec symulacji uwzględnia wartość całego portfela po terminie ostatniej obligacji.
+- `Target Date` jest terminem, do którego trzeba pozyskać zadaną kwotę netto (`Target Amount`). Karta podsumowania pokazuje środki z pozycji zaplanowanych do wykupu do tej daty oraz naturalnych zapadalności.
+- Planer dobiera całe pozycje do wcześniejszego wykupu w `Target Date`, minimalizując szacowaną utratę wartości wobec trzymania ich do końca symulacji. Uwzględnia kwoty netto z naturalnych wykupów przed terminem celu, a pozycje kupione po dacie celu pomija. Wyznaczoną rekomendację można zastosować do portfela; nadpisuje daty wykupu kompletnych pozycji.
+- Koniec symulacji uwzględnia wartość całego portfela po terminie ostatniej obligacji.
 
-Parametry demonstracyjne nie są oficjalnymi warunkami emisji. Wyniki mają charakter poglądowy i nie stanowią porady inwestycyjnej ani podatkowej.
+Wpisana kwota domyślna wynosi 1 000 000 zł i można ją zmienić. Planer jest dokładny dla analizowanych kombinacji, ale dla bardzo dużych portfeli może odmówić wyliczenia zamiast zwrócić przybliżony plan. Parametry demonstracyjne nie są oficjalnymi warunkami emisji. Wyniki zależą od poprawności wpisanych stóp, opłat i zasad naliczania; mają charakter poglądowy i nie stanowią porady inwestycyjnej ani podatkowej.
 
 ## Publikacja na GitHub Pages
 

@@ -4,9 +4,11 @@
   const STORAGE = {
     emissions: "obligacje-symulator-emissions",
     portfolio: "obligacje-symulator-portfolio",
-    targetDate: "obligacje-symulator-target-date"
+    targetDate: "obligacje-symulator-target-date",
+    targetAmount: "obligacje-symulator-target-amount"
   };
   const TARGET_DEFAULT = "2026-12-01";
+  const TARGET_AMOUNT_DEFAULT = "1000000";
   const FILE_FALLBACKS = {
     emissions: `emissions:
   - id: TOS-DEMO
@@ -59,6 +61,9 @@
     legend: $("chart-legend"),
     empty: $("chart-empty"),
     targetDate: $("target-date"),
+    targetAmount: $("target-amount"),
+    plannerResult: $("planner-result"),
+    calculatePlanButton: $("calculate-plan"),
     addPosition: $("add-position")
   };
 
@@ -67,6 +72,7 @@
   let validPositions = [];
   let chartState = null;
   let parseReady = false;
+  let planHasRun = false;
 
   const todayISO = () => {
     const now = new Date();
@@ -203,8 +209,9 @@
     return { principal, interest: Math.max(0, interest), maturity };
   }
 
-  function positionValue(position, date) {
-    const { emission, purchase, redemption } = position;
+  function positionValue(position, date, redemptionOverride = position.redemption) {
+    const { emission, purchase } = position;
+    const redemption = redemptionOverride || null;
     const maturity = addMonths(purchase, emission.term_months);
     const earlyRedemption = redemption && redemption < maturity;
     const payoutDate = earlyRedemption ? redemption : maturity;
@@ -401,18 +408,194 @@
     const currentTotal = validPositions.reduce((sum, position) => sum + positionValue(position, today).value, 0);
     const target = parseDate(els.targetDate.value);
     const redeemedByTarget = target ? validPositions.reduce((sum, position) => {
-      return position.redemption && position.redemption <= target
-        ? sum + positionValue(position, target).value
-        : sum;
+      if (position.redemption && position.redemption <= target) {
+        return sum + positionValue(position, target).value;
+      }
+      const maturity = addMonths(position.purchase, position.emission.term_months);
+      return maturity <= target ? sum + positionValue(position, target, "").value : sum;
     }, 0) : 0;
     const endTotal = validPositions.reduce((sum, position) => sum + positionValue(position, endDate).value, 0);
     $("current-value").textContent = money(currentTotal);
     $("current-caption").textContent = `na ${shortDate(today)}`;
     $("target-value").textContent = money(redeemedByTarget);
-    $("target-caption").textContent = target ? `wykupione pozycje do ${shortDate(target)}` : "wybierz datę docelową";
+    $("target-caption").textContent = target ? `zaplanowane wykupy i zapadalności do ${shortDate(target)}` : "wybierz datę docelową";
     $("end-value").textContent = money(endTotal);
     $("end-caption").textContent = `na ${shortDate(endDate)}`;
     $("chart-range").textContent = `Zakres: ${shortDate(chartState?.start || today)} — ${shortDate(endDate)}`;
+  }
+
+  function appendPlanMessage(className, text) {
+    const message = document.createElement("p");
+    message.className = className;
+    message.textContent = text;
+    els.plannerResult.replaceChildren(message);
+  }
+
+  function prunePlanStates(states) {
+    const ordered = [...states.values()].sort((a, b) => b.raisedCents - a.raisedCents || a.lossCents - b.lossCents);
+    const kept = new Map();
+    let bestLoss = Infinity;
+    for (const state of ordered) {
+      if (state.lossCents >= bestLoss) continue;
+      bestLoss = state.lossCents;
+      kept.set(state.keyCents, state);
+    }
+    return kept;
+  }
+
+  function calculatePlan(markAsRequested = true) {
+    if (markAsRequested) planHasRun = true;
+    const targetDate = parseDate(els.targetDate.value);
+    const targetAmount = Number(els.targetAmount.value);
+    if (!targetDate) {
+      appendPlanMessage("planner-error", "Wybierz prawidłowy Target Date.");
+      return;
+    }
+    if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
+      appendPlanMessage("planner-error", "Wpisz dodatni Target Amount, czyli kwotę netto potrzebną do Target Date.");
+      return;
+    }
+    if (!validPositions.length) {
+      appendPlanMessage("planner-error", "Brak kompletnych pozycji do analizy.");
+      return;
+    }
+
+    const targetCents = Math.round(targetAmount * 100);
+    if (!Number.isSafeInteger(targetCents)) {
+      appendPlanMessage("planner-error", "Target Amount jest zbyt duży do dokładnego obliczenia.");
+      return;
+    }
+    const endDate = validPositions.reduce((latest, position) => {
+      const maturity = addMonths(position.purchase, position.emission.term_months);
+      return !latest || maturity > latest ? maturity : latest;
+    }, null);
+    let naturalCashCents = 0;
+    const candidates = [];
+    validPositions.forEach((position) => {
+      const maturity = addMonths(position.purchase, position.emission.term_months);
+      if (position.purchase > targetDate) return;
+      if (maturity <= targetDate) {
+        naturalCashCents += Math.round(positionValue(position, targetDate, "").value * 100);
+        return;
+      }
+      const netAtTarget = positionValue(position, targetDate, targetDate).value;
+      const heldToEnd = positionValue(position, endDate, "").value;
+      candidates.push({
+        index: position.index,
+        label: `${position.emission.id} · ${position.emission.name}`,
+        netCents: Math.round(netAtTarget * 100),
+        lossCents: Math.round((heldToEnd - netAtTarget) * 100)
+      });
+    });
+
+    const remainingCents = Math.max(0, targetCents - naturalCashCents);
+    let states = new Map([[0, { keyCents: 0, raisedCents: 0, lossCents: 0, indices: [] }]]);
+    for (const candidate of candidates) {
+      const next = new Map(states);
+      for (const state of states.values()) {
+        const raisedCents = state.raisedCents + candidate.netCents;
+        const keyCents = Math.min(remainingCents, raisedCents);
+        const proposal = {
+          keyCents,
+          raisedCents,
+          lossCents: state.lossCents + candidate.lossCents,
+          indices: [...state.indices, candidate.index]
+        };
+        const current = next.get(keyCents);
+        if (!current || proposal.lossCents < current.lossCents ||
+          (proposal.lossCents === current.lossCents && proposal.raisedCents < current.raisedCents)) {
+          next.set(keyCents, proposal);
+        }
+      }
+      states = next.size > 100000 ? prunePlanStates(next) : next;
+      if (states.size > 150000) {
+        appendPlanMessage("planner-error", "Jest zbyt wiele różnych kombinacji, aby znaleźć dokładne optimum. Podziel portfel na mniejsze grupy lub usuń nieaktywne pozycje i spróbuj ponownie.");
+        return;
+      }
+    }
+    const best = states.get(remainingCents);
+    const maximumCents = naturalCashCents + candidates.reduce((sum, candidate) => sum + candidate.netCents, 0);
+    if (!best) {
+      appendPlanMessage("planner-error", `Nie da się zebrać tej kwoty do ${shortDate(targetDate)}. Maksymalna szacowana kwota netto z dostępnych pozycji to ${money(maximumCents / 100)}.`);
+      return;
+    }
+
+    const selected = new Set(best.indices);
+    const plannedCents = naturalCashCents + best.raisedCents;
+    const lossCents = best.lossCents;
+    const heading = document.createElement("div");
+    heading.className = "plan-outcome";
+    const outcomeCopy = document.createElement("div");
+    const outcomeTitle = document.createElement("strong");
+    outcomeTitle.textContent = plannedCents >= targetCents
+      ? `Plan zbiera ${money(plannedCents / 100)} netto do ${shortDate(targetDate)}`
+      : "Nie udało się osiągnąć celu";
+    const outcomeSubtitle = document.createElement("span");
+    outcomeSubtitle.textContent = `${selected.size} ${selected.size === 1 ? "pozycja do wcześniejszego wykupu" : "pozycji do wcześniejszego wykupu"} · najmniejsza szacowana utrata wartości: ${money(lossCents / 100)}`;
+    outcomeCopy.append(outcomeTitle, outcomeSubtitle);
+    const apply = document.createElement("button");
+    apply.className = "apply-plan-button";
+    apply.type = "button";
+    apply.textContent = "Zastosuj plan do portfela";
+    apply.disabled = selected.size === 0;
+    apply.addEventListener("click", () => applyPlan(selected, targetDate));
+    heading.append(outcomeCopy, apply);
+    els.plannerResult.replaceChildren(heading);
+
+    const list = document.createElement("div");
+    list.className = "plan-list";
+    const rows = [
+      ...validPositions.filter((position) => selected.has(position.index)).map((position) => ({
+        title: `${position.emission.id} · ${position.emission.name}`,
+        detail: `${position.data.quantity} szt. · zerwać w Target Date · koszt utraty: ${money(positionValue(position, endDate, "").value - positionValue(position, targetDate, targetDate).value)}`,
+        amount: money(positionValue(position, targetDate, targetDate).value),
+        type: "plan-selected"
+      })),
+      ...validPositions.filter((position) => addMonths(position.purchase, position.emission.term_months) <= targetDate).map((position) => ({
+        title: `${position.emission.id} · ${position.emission.name}`,
+        detail: `${position.data.quantity} szt. · naturalny wykup ${shortDate(addMonths(position.purchase, position.emission.term_months))}`,
+        amount: money(positionValue(position, targetDate, "").value),
+        type: "plan-matured"
+      })),
+      ...validPositions.filter((position) =>
+        !selected.has(position.index) &&
+        position.purchase <= targetDate &&
+        addMonths(position.purchase, position.emission.term_months) > targetDate
+      ).map((position) => ({
+        title: `${position.emission.id} · ${position.emission.name}`,
+        detail: `${position.data.quantity} szt. · pozostawić do zapadalności · dostępne netto przy zerwaniu: ${money(positionValue(position, targetDate, targetDate).value)}`,
+        amount: money(positionValue(position, endDate, "").value),
+        type: "plan-held"
+      }))
+    ];
+    rows.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = `plan-row ${item.type}`;
+      const label = document.createElement("span");
+      const title = document.createElement("strong");
+      title.textContent = item.title;
+      const detail = document.createElement("small");
+      detail.textContent = item.detail;
+      label.append(title, detail);
+      const amount = document.createElement("strong");
+      amount.textContent = item.amount;
+      row.append(label, amount);
+      list.append(row);
+    });
+    if (rows.length) els.plannerResult.append(list);
+
+    const footnote = document.createElement("p");
+    footnote.className = "planner-footnote";
+    footnote.textContent = `Nadwyżka ponad cel: ${money(Math.max(0, plannedCents - targetCents) / 100)}. Utrata wartości porównuje wypłatę netto z Target Date z wartością netto przy trzymaniu do ${shortDate(endDate)}. To szacunek oparty na wpisanych stopach i opłatach.`;
+    els.plannerResult.append(footnote);
+  }
+
+  function applyPlan(selected, targetDate) {
+    if (!window.confirm("Zastosować rekomendację? Daty wykupu wszystkich kompletnych pozycji zostaną ustawione na Target Date dla wybranych pozycji i na „Do zapadalności” dla pozostałych.")) return;
+    for (const position of validPositions) {
+      position.data.redemption_date = selected.has(position.index) ? dateISO(targetDate) : "";
+    }
+    writePortfolioYaml();
   }
 
   function svgNode(name, attrs = {}) {
@@ -609,6 +792,7 @@
       setStatus(els.portfolioStatus, incomplete ? `${holdings.length} pozycji · ${incomplete} do uzupełnienia` : `${holdings.length} pozycji · poprawny YAML`, incomplete ? "warning" : "");
       renderTable();
       renderChart();
+      if (planHasRun) calculatePlan(false);
     } catch (error) {
       setStatus(els.portfolioStatus, error.message, "error");
     }
@@ -661,6 +845,10 @@
       parseReady = true;
       const savedTarget = localStorage.getItem(STORAGE.targetDate);
       els.targetDate.value = parseDate(savedTarget) ? savedTarget : TARGET_DEFAULT;
+      const savedAmount = localStorage.getItem(STORAGE.targetAmount);
+      els.targetAmount.value = savedAmount !== null && Number.isFinite(Number(savedAmount)) && Number(savedAmount) > 0
+        ? savedAmount
+        : TARGET_AMOUNT_DEFAULT;
       runSimulation();
     }).catch((error) => {
       setStatus(els.emissionStatus, error.message, "error");
@@ -681,6 +869,15 @@
     localStorage.setItem(STORAGE.targetDate, els.targetDate.value);
     runSimulation();
   });
+  els.targetAmount.addEventListener("input", () => {
+    try {
+      localStorage.setItem(STORAGE.targetAmount, els.targetAmount.value);
+    } catch (error) {
+      console.error("Nie udało się zapisać Target Amount lokalnie.", error);
+    }
+    if (planHasRun) calculatePlan(false);
+  });
+  els.calculatePlanButton.addEventListener("click", () => calculatePlan());
   els.addPosition.addEventListener("click", addPosition);
   els.positions.addEventListener("change", handlePositionChange);
   els.positions.addEventListener("click", handlePositionClick);
@@ -691,6 +888,8 @@
     if (!window.confirm("Przywrócić przykładowe dane? Zastąpią one zapisane dane w tej przeglądarce.")) return;
     localStorage.removeItem(STORAGE.emissions);
     localStorage.removeItem(STORAGE.portfolio);
+    localStorage.removeItem(STORAGE.targetDate);
+    localStorage.removeItem(STORAGE.targetAmount);
     window.location.reload();
   });
   initialize();
