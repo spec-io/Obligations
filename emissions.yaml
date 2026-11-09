@@ -1,0 +1,23 @@
+# Warunki demonstracyjne, nie są oficjalnymi parametrami aktualnych emisji.
+# Zastąp je właściwymi warunkami z listu emisyjnego.
+emissions:
+  - id: TOS-DEMO
+    name: Obligacje 3-letnie (przykład)
+    type: TOS
+    term_months: 36
+    price_per_bond: 100
+    annual_rates: [5.95]
+    accrual: annual_compound
+    redemption_fee_per_bond: 1.00
+    redemption_fee_cap_per_bond: 1.00
+    tax_rate: 19
+  - id: EDO-DEMO
+    name: Obligacje 10-letnie (przykład)
+    type: EDO
+    term_months: 120
+    price_per_bond: 100
+    annual_rates: [6.55, 2.00]
+    accrual: annual_compound
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    tax_rate: 19

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7f4">
+    <meta name="description" content="Prywatny symulator scenariuszy obligacji skarbowych. Dane pozostają w Twojej przeglądarce.">
+    <title>Obligacje — symulator portfela</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Obligacje — strona główna">
+        <span class="brand-mark" aria-hidden="true">O</span>
+        <span>obligacje<span class="brand-dot">.</span></span>
+      </a>
+      <div class="topbar-note"><span class="privacy-dot"></span> Prywatny symulator · dane zostają u Ciebie</div>
+    </header>
+
+    <main class="page">
+      <section class="intro">
+        <div class="intro-copy">
+          <div class="eyebrow"><span class="eyebrow-line"></span> PLANUJ ŚWIADOMIE</div>
+          <h1>Twoje obligacje.<br><span>Twoje scenariusze.</span></h1>
+          <p>Sprawdź, jak zmienia się wartość portfela w czasie. Porównaj wcześniejszy wykup z czekaniem do terminu i znajdź moment, który ma sens dla Ciebie.</p>
+        </div>
+        <div class="intro-stats" aria-label="Informacje o symulacji">
+          <div><span class="stat-icon">↗</span><span>Symulacja wartości<br><strong>dzień po dniu</strong></span></div>
+          <div><span class="stat-icon lock-icon">⌑</span><span>Twoje dane<br><strong>tylko w tej przeglądarce</strong></span></div>
+        </div>
+      </section>
+
+      <section class="summary-grid" aria-label="Podsumowanie portfela">
+        <article class="summary-card">
+          <div class="summary-heading"><span class="summary-icon icon-green">◎</span><span>WARTOŚĆ PORTFELA</span></div>
+          <strong class="summary-value" id="current-value">—</strong>
+          <span class="summary-caption" id="current-caption">na dzień symulacji</span>
+        </article>
+        <article class="summary-card target-card">
+          <div class="summary-heading"><span class="summary-icon icon-orange">⌖</span><span>DATA DOCELOWA</span></div>
+          <strong class="summary-value" id="target-value">—</strong>
+          <span class="summary-caption" id="target-caption">wykup do wybranej daty</span>
+        </article>
+        <article class="summary-card">
+          <div class="summary-heading"><span class="summary-icon icon-blue">◷</span><span>KONIEC SYMULACJI</span></div>
+          <strong class="summary-value" id="end-value">—</strong>
+          <span class="summary-caption" id="end-caption">wartość po wykupie ostatnich obligacji</span>
+        </article>
+        <article class="summary-card">
+          <div class="summary-heading"><span class="summary-icon icon-violet">▤</span><span>AKTYWNE POZYCJE</span></div>
+          <strong class="summary-value" id="position-count">—</strong>
+          <span class="summary-caption" id="position-caption">poprawne pozycje w symulacji</span>
+        </article>
+      </section>
+
+      <section class="panel chart-panel">
+        <div class="panel-header chart-header">
+          <div>
+            <div class="section-kicker">WIZUALIZACJA PORTFELA</div>
+            <h2>Wartość w czasie</h2>
+            <p class="panel-subtitle">Każda linia pokazuje wartość netto pozycji, a po wykupie — gotówkę pozostającą bez oprocentowania.</p>
+          </div>
+          <label class="date-control" for="target-date">
+            <span>Target Date</span>
+            <input id="target-date" type="date">
+          </label>
+        </div>
+        <div class="chart-toolbar">
+          <div class="chart-legend" id="chart-legend" aria-label="Legenda wykresu"></div>
+          <div class="chart-hint"><span class="hint-dot"></span> Kliknij lub najedź na wykres, aby zobaczyć szczegóły</div>
+        </div>
+        <div class="chart-wrap" id="chart-wrap">
+          <div class="chart-empty" id="chart-empty" hidden>
+            <span class="empty-icon">⌁</span>
+            <strong>Dodaj kompletne pozycje, aby zobaczyć wykres</strong>
+            <span>Uzupełnij emisję, liczbę obligacji i datę zakupu w danych portfela.</span>
+          </div>
+          <svg id="portfolio-chart" role="img" aria-label="Wykres wartości portfela w czasie"></svg>
+          <div class="chart-tooltip" id="chart-tooltip" role="status" hidden></div>
+        </div>
+        <div class="chart-footer">
+          <span id="chart-range">—</span>
+          <span><span class="footer-dot"></span> Wartość netto uwzględnia opłatę za przedterminowy wykup i podatek wskazany w danych emisji.</span>
+        </div>
+      </section>
+
+      <section class="panel portfolio-panel">
+        <div class="panel-header">
+          <div>
+            <div class="section-kicker">TWOJE POZYCJE</div>
+            <h2>Portfel obligacji</h2>
+            <p class="panel-subtitle">Pozycje niekompletne są oznaczone na żółto i pomijane na wykresie.</p>
+          </div>
+          <span class="position-badge" id="position-badge">0 pozycji</span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>EMISJA</th><th>ILOŚĆ</th><th>DATA ZAKUPU</th><th>DATA WYKUPU</th><th>STATUS</th></tr>
+            </thead>
+            <tbody id="positions-body"></tbody>
+          </table>
+        </div>
+        <div class="table-footnote"><span class="warning-symbol">!</span> Data wykupu jest opcjonalna. Jej brak oznacza symulację do terminu zapadalności.</div>
+      </section>
+
+      <section class="panel data-panel">
+        <div class="panel-header data-panel-header">
+          <div>
+            <div class="section-kicker">DANE WEJŚCIOWE</div>
+            <h2>Dopasuj symulację</h2>
+            <p class="panel-subtitle">Wprowadź warunki emisji i własne pozycje. Zmiany zapisują się lokalnie w tej przeglądarce.</p>
+          </div>
+          <button class="secondary-button" id="reset-data" type="button">Przywróć przykłady</button>
+        </div>
+        <div class="editors">
+          <section class="editor-card">
+            <div class="editor-title"><span class="editor-number">01</span><div><h3>Emisje</h3><span>Warunki i parametry obligacji</span></div><button class="download-button" data-download="emissions" type="button" aria-label="Pobierz YAML emisji">↓ YAML</button></div>
+            <label class="sr-only" for="emissions-input">Dane emisji w formacie YAML</label>
+            <textarea id="emissions-input" spellcheck="false" aria-describedby="emissions-help"></textarea>
+            <div class="editor-foot"><span id="emissions-status" class="editor-status">Ładowanie…</span><span id="emissions-help">Zapis YAML · patrz przykłady w README</span></div>
+          </section>
+          <section class="editor-card">
+            <div class="editor-title"><span class="editor-number editor-number-blue">02</span><div><h3>Portfel</h3><span>Twoje ilości i daty</span></div><button class="download-button" data-download="portfolio" type="button" aria-label="Pobierz YAML portfela">↓ YAML</button></div>
+            <label class="sr-only" for="portfolio-input">Dane portfela w formacie YAML</label>
+            <textarea id="portfolio-input" spellcheck="false" aria-describedby="portfolio-help"></textarea>
+            <div class="editor-foot"><span id="portfolio-status" class="editor-status">Ładowanie…</span><span id="portfolio-help">Dane pozostają na Twoim urządzeniu</span></div>
+          </section>
+        </div>
+        <div class="schema-note"><span class="schema-icon">i</span><p><strong>Jak liczymy?</strong> Symulacja korzysta wyłącznie z warunków podanych w YAML. Oprocentowanie składa się rocznymi okresami (albo prosto, jeśli tak ustawiono), z proporcją dni dla niepełnego okresu. Wartość netto szacuje podatek od dodatniego odsetkowego zysku po opłacie za wykup. To narzędzie poglądowe — sprawdź zasady konkretnej emisji przed podjęciem decyzji.</p></div>
+      </section>
+
+      <footer class="page-footer">
+        <span>OBLIGACJE<span class="brand-dot">.</span> · NARZĘDZIE DO SYMULACJI SCENARIUSZY</span>
+        <span>Wszystkie obliczenia odbywają się lokalnie w Twojej przeglądarce.</span>
+      </footer>
+    </main>
+  </body>
+</html>
