@@ -27,8 +27,14 @@ holdings:
   - emission_id: MOJA-EMISJA
     quantity: 10
     purchase_date: 2025-01-15
-    redemption_date: 2026-03-01 # opcjonalnie; puste = bez wcześniejszego wykupu
+    redemption_date: 2026-03-01 # opcjonalnie; puste/null = Target Date
+  - emission_id: MOJA-EMISJA
+    quantity: 5
+    purchase_date: 2025-02-01
+    redemption_date: "" # pusty tekst = bez wcześniejszego wykupu
 ```
+
+W tabeli portfela można zmieniać emisję, ilość i daty, dodawać oraz usuwać pozycje. Zmiany aktualizują YAML i zapisują się lokalnie w przeglądarce. `redemption_date` pominięte albo `null` domyślnie przyjmuje aktualny `Target Date`; jawny pusty tekst `""` oznacza trzymanie obligacji do zapadalności. Nowe pozycje dostają ilość 1, dzisiejszą datę zakupu i aktualny `Target Date` jako datę wykupu.
 
 Wymagane dla pozycji są `emission_id`, dodatnie całkowite `quantity` i prawidłowe `purchase_date`. Brakujące lub nieprawidłowe dane pokazują pozycję jako niekompletną; nie jest ona liczona ani rysowana. Wcześniejszy wykup musi przypadać po zakupie i nie później niż termin zapadalności.
 
@@ -44,8 +50,8 @@ Parametry demonstracyjne nie są oficjalnymi warunkami emisji. Wyniki mają char
 
 ## Publikacja na GitHub Pages
 
-1. Utwórz repozytorium na swoim koncie GitHub i wypchnij zawartość tego katalogu do gałęzi `main`.
-2. W ustawieniach repozytorium otwórz **Pages** i jako źródło wybierz **Deploy from a branch**, gałąź `main` oraz katalog `/ (root)`.
-3. Zapisz ustawienia. Po zakończeniu wdrożenia strona będzie dostępna pod adresem GitHub Pages repozytorium.
+1. W ustawieniach repozytorium otwórz **Pages** i jako źródło wybierz **GitHub Actions**.
+2. Wypchnij zawartość tego katalogu do gałęzi `main`. Workflow `.github/workflows/pages.yml` automatycznie publikuje pliki po każdym pushu; można go też uruchomić ręcznie w zakładce **Actions**.
+3. Po zakończeniu workflow strona będzie dostępna pod adresem GitHub Pages repozytorium.
 
 Pliki YAML zawierają wyłącznie przykładowe dane. Własne dane wpisuj w aplikacji — nie dodawaj ich do publicznego repozytorium.

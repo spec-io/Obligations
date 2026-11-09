@@ -3,7 +3,47 @@
 
   const STORAGE = {
     emissions: "obligacje-symulator-emissions",
-    portfolio: "obligacje-symulator-portfolio"
+    portfolio: "obligacje-symulator-portfolio",
+    targetDate: "obligacje-symulator-target-date"
+  };
+  const TARGET_DEFAULT = "2026-12-01";
+  const FILE_FALLBACKS = {
+    emissions: `emissions:
+  - id: TOS-DEMO
+    name: Obligacje 3-letnie (przykład)
+    type: TOS
+    term_months: 36
+    price_per_bond: 100
+    annual_rates: [5.95]
+    accrual: annual_compound
+    redemption_fee_per_bond: 1.00
+    redemption_fee_cap_per_bond: 1.00
+    tax_rate: 19
+  - id: EDO-DEMO
+    name: Obligacje 10-letnie (przykład)
+    type: EDO
+    term_months: 120
+    price_per_bond: 100
+    annual_rates: [6.55, 2.00]
+    accrual: annual_compound
+    redemption_fee_per_bond: 2.00
+    redemption_fee_cap_per_bond: 2.00
+    tax_rate: 19
+`,
+    portfolio: `holdings:
+  - emission_id: TOS-DEMO
+    quantity: 40
+    purchase_date: 2025-02-15
+    redemption_date: 2026-03-01
+  - emission_id: EDO-DEMO
+    quantity: 25
+    purchase_date: 2024-09-01
+    redemption_date:
+  - emission_id: TOS-DEMO
+    quantity: 12
+    purchase_date:
+    redemption_date:
+`
   };
   const COLORS = ["#35845d", "#527f9d", "#c48643", "#8175a7", "#4d9b91", "#bb6971", "#80934f", "#5476b4"];
   const $ = (id) => document.getElementById(id);
@@ -18,7 +58,8 @@
     tooltip: $("chart-tooltip"),
     legend: $("chart-legend"),
     empty: $("chart-empty"),
-    targetDate: $("target-date")
+    targetDate: $("target-date"),
+    addPosition: $("add-position")
   };
 
   let emissionRows = [];
@@ -112,10 +153,18 @@
       if (typeof row.emission_id !== "string" || !row.emission_id.trim()) problems.push("brak identyfikatora emisji");
       if (!Number.isInteger(row.quantity) || row.quantity <= 0) problems.push("ilość musi być dodatnią liczbą całkowitą");
       const purchase = parseDate(row.purchase_date);
+      if (purchase) row.purchase_date = dateISO(purchase);
       if (!purchase) problems.push("brak lub nieprawidłowa data zakupu");
-      const redemptionMissing = row.redemption_date === null || row.redemption_date === undefined || row.redemption_date === "";
-      const redemption = redemptionMissing ? null : parseDate(row.redemption_date);
-      if (!redemptionMissing && !redemption) problems.push("nieprawidłowa data wykupu");
+      const noEarlyRedemption = row.redemption_date === "";
+      const redemption = noEarlyRedemption
+        ? null
+        : row.redemption_date === null || row.redemption_date === undefined
+          ? parseDate(els.targetDate.value || TARGET_DEFAULT)
+          : parseDate(row.redemption_date);
+      if (row.redemption_date !== null && row.redemption_date !== undefined && row.redemption_date !== "" && redemption) {
+        row.redemption_date = dateISO(redemption);
+      }
+      if (!noEarlyRedemption && !redemption) problems.push("nieprawidłowa data wykupu");
       const emissionRecord = emissionRows.find((candidate) => candidate.data && candidate.data.id === row.emission_id);
       if (!emissionRecord) problems.push(`nieznana emisja: ${row.emission_id || "brak"}`);
       else if (emissionRecord.problems.length) problems.push(`niekompletne warunki emisji ${row.emission_id}`);
@@ -182,19 +231,75 @@
       const row = document.createElement("tr");
       if (problems.length) row.className = "incomplete-row";
       const issue = document.createElement("td");
-      const issueName = document.createElement("span");
-      issueName.className = "issue-name";
-      issueName.textContent = emission?.name || data.emission_id || "Nieuzupełniona pozycja";
-      const issueCode = document.createElement("span");
-      issueCode.className = "issue-code";
-      issueCode.textContent = data.emission_id && emission ? `${data.emission_id} · ${emission.type || "Obligacja"}` : data.emission_id || "Brak ID emisji";
-      issue.append(issueName, issueCode);
+      const emissionSelect = document.createElement("select");
+      emissionSelect.className = "cell-control emission-select";
+      emissionSelect.dataset.holdingField = "emission_id";
+      emissionSelect.dataset.index = String(index);
+      emissionSelect.setAttribute("aria-label", `Emisja w pozycji ${index + 1}`);
+      if (!data.emission_id) {
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "Wybierz emisję";
+        emptyOption.selected = true;
+        emissionSelect.append(emptyOption);
+      }
+      if (data.emission_id && !emissionRows.some((candidate) => candidate.data?.id === data.emission_id)) {
+        const missingOption = document.createElement("option");
+        missingOption.value = data.emission_id;
+        missingOption.textContent = `${data.emission_id} (brak w katalogu)`;
+        missingOption.selected = true;
+        emissionSelect.append(missingOption);
+      }
+      emissionRows.filter((candidate) => candidate.data?.id).forEach((candidate) => {
+        const option = document.createElement("option");
+        option.value = candidate.data.id;
+        option.textContent = `${candidate.data.id} · ${candidate.data.type || candidate.data.name || "Obligacja"}`;
+        option.selected = candidate.data.id === data.emission_id;
+        emissionSelect.append(option);
+      });
+      issue.append(emissionSelect);
       const quantity = document.createElement("td");
-      quantity.textContent = Number.isInteger(data.quantity) && data.quantity > 0 ? `${data.quantity} szt.` : "—";
+      const quantityInput = document.createElement("input");
+      quantityInput.className = "cell-control quantity-input";
+      quantityInput.type = "number";
+      quantityInput.min = "1";
+      quantityInput.step = "1";
+      quantityInput.value = data.quantity ?? "";
+      quantityInput.dataset.holdingField = "quantity";
+      quantityInput.dataset.index = String(index);
+      quantityInput.setAttribute("aria-label", `Liczba obligacji w pozycji ${index + 1}`);
+      quantity.append(quantityInput);
       const purchaseCell = document.createElement("td");
-      purchaseCell.textContent = displayDate(data.purchase_date);
+      const purchaseInput = document.createElement("input");
+      purchaseInput.className = "cell-control date-input";
+      purchaseInput.type = "date";
+      purchaseInput.value = purchase ? dateISO(purchase) : "";
+      purchaseInput.dataset.holdingField = "purchase_date";
+      purchaseInput.dataset.index = String(index);
+      purchaseInput.setAttribute("aria-label", `Data zakupu w pozycji ${index + 1}`);
+      purchaseCell.append(purchaseInput);
       const redemptionCell = document.createElement("td");
-      redemptionCell.textContent = redemption ? shortDate(redemption) : "Do zapadalności";
+      const redemptionInput = document.createElement("input");
+      redemptionInput.className = "cell-control date-input";
+      redemptionInput.type = "date";
+      redemptionInput.value = redemption ? dateISO(redemption) : "";
+      redemptionInput.dataset.holdingField = "redemption_date";
+      redemptionInput.dataset.index = String(index);
+      redemptionInput.setAttribute("aria-label", `Data wykupu w pozycji ${index + 1}`);
+      const redemptionMode = document.createElement("button");
+      redemptionMode.className = "redemption-mode";
+      redemptionMode.type = "button";
+      redemptionMode.dataset.index = String(index);
+      if (redemption) {
+        redemptionMode.textContent = "Do zapadalności";
+        redemptionMode.dataset.clearRedemption = "true";
+        redemptionMode.setAttribute("aria-label", `Ustaw pozycję ${index + 1} bez wcześniejszego wykupu`);
+      } else {
+        redemptionMode.textContent = "Ustaw Target";
+        redemptionMode.dataset.targetRedemption = "true";
+        redemptionMode.setAttribute("aria-label", `Ustaw Target Date jako wykup pozycji ${index + 1}`);
+      }
+      redemptionCell.append(redemptionInput, redemptionMode);
       const status = document.createElement("td");
       const chip = document.createElement("span");
       chip.className = `status-chip${problems.length ? " status-incomplete" : ""}`;
@@ -207,7 +312,16 @@
         details.title = `Pozycja ${index + 1}: ${problems.join("; ")}`;
         status.append(details);
       }
-      row.append(issue, quantity, purchaseCell, redemptionCell, status);
+      const actions = document.createElement("td");
+      const removeButton = document.createElement("button");
+      removeButton.className = "remove-position";
+      removeButton.type = "button";
+      removeButton.textContent = "Usuń";
+      removeButton.dataset.removePosition = "true";
+      removeButton.dataset.index = String(index);
+      removeButton.setAttribute("aria-label", `Usuń pozycję ${index + 1}`);
+      actions.append(removeButton);
+      row.append(issue, quantity, purchaseCell, redemptionCell, status, actions);
       els.positions.append(row);
     });
     $("position-badge").textContent = `${holdings.length} ${holdings.length === 1 ? "pozycja" : "pozycji"}`;
@@ -215,6 +329,58 @@
     $("position-caption").textContent = holdings.length === validPositions.length
       ? "kompletne pozycje w symulacji"
       : `${holdings.length - validPositions.length} niekompletnych · pominiętych`;
+  }
+
+  function writePortfolioYaml() {
+    const data = { holdings: holdings.map((position) => position.data) };
+    const text = window.jsyaml.dump(data, { lineWidth: 120, noRefs: true });
+    els.portfolio.value = text;
+    save("portfolio", text);
+    runSimulation();
+  }
+
+  function addPosition() {
+    const emission = emissionRows.find((candidate) => !candidate.problems.length)?.data;
+    if (!emission) {
+      setStatus(els.portfolioStatus, "Dodaj najpierw poprawną emisję w YAML powyżej.", "warning");
+      return;
+    }
+    const data = {
+      emission_id: emission.id,
+      quantity: 1,
+      purchase_date: todayISO(),
+      redemption_date: els.targetDate.value || TARGET_DEFAULT
+    };
+    holdings.push({ data, problems: [], purchase: parseDate(data.purchase_date), redemption: parseDate(data.redemption_date), emission, index: holdings.length });
+    writePortfolioYaml();
+  }
+
+  function updateHolding(index, field, rawValue) {
+    const position = holdings[index];
+    if (!position) return;
+    if (field === "quantity") position.data.quantity = rawValue === "" ? "" : Number(rawValue);
+    else position.data[field] = rawValue;
+    writePortfolioYaml();
+  }
+
+  function handlePositionChange(event) {
+    const field = event.target.closest("[data-holding-field]");
+    if (!field) return;
+    updateHolding(Number(field.dataset.index), field.dataset.holdingField, field.value);
+  }
+
+  function handlePositionClick(event) {
+    const button = event.target.closest("button");
+    if (!button) return;
+    const index = Number(button.dataset.index);
+    if (button.dataset.removePosition) {
+      holdings.splice(index, 1);
+      writePortfolioYaml();
+    } else if (button.dataset.clearRedemption) {
+      updateHolding(index, "redemption_date", "");
+    } else if (button.dataset.targetRedemption) {
+      updateHolding(index, "redemption_date", els.targetDate.value || TARGET_DEFAULT);
+    }
   }
 
   function updateSummary() {
@@ -454,6 +620,9 @@
     return fetch(`./${filename}`).then((response) => {
       if (!response.ok) throw new Error(`Nie udało się wczytać ${filename} (${response.status}).`);
       return response.text();
+    }).catch((error) => {
+      if (window.location.protocol === "file:") return FILE_FALLBACKS[key];
+      throw error;
     });
   }
 
@@ -490,7 +659,8 @@
       els.emissions.value = emissions;
       els.portfolio.value = portfolio;
       parseReady = true;
-      if (!els.targetDate.value) els.targetDate.value = todayISO();
+      const savedTarget = localStorage.getItem(STORAGE.targetDate);
+      els.targetDate.value = parseDate(savedTarget) ? savedTarget : TARGET_DEFAULT;
       runSimulation();
     }).catch((error) => {
       setStatus(els.emissionStatus, error.message, "error");
@@ -506,7 +676,14 @@
     save("portfolio", els.portfolio.value);
     runSimulation();
   });
-  els.targetDate.addEventListener("change", updateSummary);
+  els.targetDate.addEventListener("change", () => {
+    if (!parseDate(els.targetDate.value)) els.targetDate.value = TARGET_DEFAULT;
+    localStorage.setItem(STORAGE.targetDate, els.targetDate.value);
+    runSimulation();
+  });
+  els.addPosition.addEventListener("click", addPosition);
+  els.positions.addEventListener("change", handlePositionChange);
+  els.positions.addEventListener("click", handlePositionClick);
   document.querySelectorAll("[data-download]").forEach((button) => {
     button.addEventListener("click", () => downloadYaml(button.dataset.download));
   });

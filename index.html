@@ -94,19 +94,22 @@
           <div>
             <div class="section-kicker">TWOJE POZYCJE</div>
             <h2>Portfel obligacji</h2>
-            <p class="panel-subtitle">Pozycje niekompletne są oznaczone na żółto i pomijane na wykresie.</p>
+            <p class="panel-subtitle">Edytuj ilość i daty bezpośrednio w tabeli. Niekompletne pozycje są pomijane na wykresie.</p>
           </div>
-          <span class="position-badge" id="position-badge">0 pozycji</span>
+          <div class="position-actions">
+            <span class="position-badge" id="position-badge">0 pozycji</span>
+            <button class="add-position-button" id="add-position" type="button">＋ Dodaj pozycję</button>
+          </div>
         </div>
         <div class="table-scroll">
           <table>
             <thead>
-              <tr><th>EMISJA</th><th>ILOŚĆ</th><th>DATA ZAKUPU</th><th>DATA WYKUPU</th><th>STATUS</th></tr>
+              <tr><th>EMISJA</th><th>ILOŚĆ</th><th>DATA ZAKUPU</th><th>DATA WYKUPU</th><th>STATUS</th><th></th></tr>
             </thead>
             <tbody id="positions-body"></tbody>
           </table>
         </div>
-        <div class="table-footnote"><span class="warning-symbol">!</span> Data wykupu jest opcjonalna. Jej brak oznacza symulację do terminu zapadalności.</div>
+        <div class="table-footnote"><span class="warning-symbol">!</span> Nowe i nieuzupełnione daty wykupu domyślnie korzystają z Target Date. Kliknij „Do zapadalności”, aby wyłączyć wcześniejszy wykup. Zmiany aktualizują również YAML poniżej.</div>
       </section>
 
       <section class="panel data-panel">
